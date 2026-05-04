@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pekko-demo
+spec:
+  selector:
+    app: pekko-demo
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: management
+      port: 8558
+      targetPort: 8558
+  type: ClusterIP

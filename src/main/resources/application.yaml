@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: pekko-demo
+
+pekko:
+  actor:
+    provider: cluster
+  remote:
+    artery:
+      canonical:
+        hostname: "127.0.0.1"
+        port: 25520
+  cluster:
+    seed-nodes:
+      - "pekko://VoiceSessionSystem@127.0.0.1:25520"
+    downing-provider-class: "org.apache.pekko.cluster.sbr.SplitBrainResolverProvider"
