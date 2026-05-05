@@ -31,6 +31,8 @@ spec:
                   fieldPath: status.podIP
             - name: JAVA_TOOL_OPTIONS
               value: -Dconfig.resource=application-k8s.conf
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/pekko
           readinessProbe:
             httpGet:
               path: /ready

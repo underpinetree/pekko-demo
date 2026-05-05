@@ -1,55 +1,65 @@
 package ee.takahiro.pekkodemo.actor
 
-import org.apache.pekko.actor.typed.ActorRef
 import org.apache.pekko.actor.typed.Behavior
-import org.apache.pekko.actor.typed.javadsl.AbstractBehavior
 import org.apache.pekko.actor.typed.javadsl.ActorContext
 import org.apache.pekko.actor.typed.javadsl.Behaviors
-import org.apache.pekko.actor.typed.javadsl.Receive
 import org.apache.pekko.cluster.Cluster
 import org.apache.pekko.cluster.sharding.typed.javadsl.EntityTypeKey
-import java.io.Serializable
+import org.apache.pekko.persistence.typed.PersistenceId
+import org.apache.pekko.persistence.typed.javadsl.CommandHandler
+import org.apache.pekko.persistence.typed.javadsl.Effect
+import org.apache.pekko.persistence.typed.javadsl.EventHandler
+import org.apache.pekko.persistence.typed.javadsl.EventSourcedBehavior
 
 class VoiceSessionActor private constructor(
-    context: ActorContext<Command>,
     private val sessionId: String,
-) : AbstractBehavior<VoiceSessionActor.Command>(context) {
+    private val ctx: ActorContext<Command>,
+    persistenceId: PersistenceId,
+) : EventSourcedBehavior<Command, Event, State>(persistenceId) {
 
     companion object {
         val TYPE_KEY: EntityTypeKey<Command> = EntityTypeKey.create(Command::class.java, "VoiceSession")
 
         fun create(sessionId: String): Behavior<Command> =
-            Behaviors.setup { ctx -> VoiceSessionActor(ctx, sessionId) }
+            Behaviors.setup { ctx ->
+                val address = Cluster.get(ctx.system.classicSystem()).selfMember().address()
+                ctx.log.info("VoiceSessionActor started: sessionId={} on node={}", sessionId, address)
+                VoiceSessionActor(sessionId, ctx, PersistenceId.ofUniqueId("VoiceSession|$sessionId"))
+            }
     }
 
-    init {
-        val address = Cluster.get(context.system.classicSystem()).selfMember().address()
-        context.log.info("VoiceSessionActor started: sessionId={} on node={}", sessionId, address)
-    }
+    override fun emptyState(): State = State()
 
-    private val members = mutableSetOf<String>()
-
-    override fun createReceive(): Receive<Command> =
-        newReceiveBuilder()
-            .onMessage(Join::class.java) { cmd ->
-                context.log.info("VoiceSessionActor command=Join sessionId={} memberId={}", sessionId, cmd.memberId)
-                members.add(cmd.memberId)
-                this
+    override fun commandHandler(): CommandHandler<Command, Event, State> =
+        newCommandHandlerBuilder()
+            .forAnyState()
+            .onCommand(Join::class.java) { _, cmd ->
+                Effect().persist(MemberJoined(cmd.memberId))
+                    .thenRun { _: State ->
+                        ctx.log.info("VoiceSessionActor command=Join sessionId={} memberId={}", sessionId, cmd.memberId)
+                    }
             }
-            .onMessage(Leave::class.java) { cmd ->
-                context.log.info("VoiceSessionActor command=Leave sessionId={} memberId={}", sessionId, cmd.memberId)
-                members.remove(cmd.memberId)
-                this
+            .onCommand(Leave::class.java) { _, cmd ->
+                Effect().persist(MemberLeft(cmd.memberId))
+                    .thenRun { _: State ->
+                        ctx.log.info("VoiceSessionActor command=Leave sessionId={} memberId={}", sessionId, cmd.memberId)
+                    }
             }
-            .onMessage(GetMembers::class.java) { cmd ->
-                context.log.info("VoiceSessionActor command=GetMembers sessionId={} memberCount={}", sessionId, members.size)
-                cmd.replyTo.tell(members.toList())
-                this
+            .onCommand(GetMembers::class.java) { state, cmd ->
+                ctx.log.info("VoiceSessionActor command=GetMembers sessionId={} memberCount={}", sessionId, state.members.size)
+                cmd.replyTo.tell(MembersResponse(state.members.toList()))
+                Effect().none()
             }
             .build()
 
-    sealed interface Command : Serializable
-    data class Join(val memberId: String) : Command
-    data class Leave(val memberId: String) : Command
-    data class GetMembers(val replyTo: ActorRef<List<String>>) : Command
+    override fun eventHandler(): EventHandler<State, Event> =
+        newEventHandlerBuilder()
+            .forAnyState()
+            .onEvent(MemberJoined::class.java) { state, event ->
+                state.copy(members = state.members + event.memberId)
+            }
+            .onEvent(MemberLeft::class.java) { state, event ->
+                state.copy(members = state.members - event.memberId)
+            }
+            .build()
 }

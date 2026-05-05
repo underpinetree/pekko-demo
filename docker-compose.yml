@@ -3,6 +3,17 @@ networks:
     driver: bridge
 
 services:
+  postgres:
+    image: postgres:16
+    networks:
+      - pekko-net
+    environment:
+      POSTGRES_DB: pekko
+      POSTGRES_USER: pekko
+      POSTGRES_PASSWORD: pekko
+    ports:
+      - "5432:5432"
+
   node1:
     build: .
     hostname: node1
@@ -13,6 +24,9 @@ services:
     environment:
       PEKKO_HOSTNAME: node1
       JAVA_TOOL_OPTIONS: -Dconfig.resource=application-docker.conf
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pekko
+    depends_on:
+      - postgres
 
   node2:
     build: .
@@ -24,6 +38,7 @@ services:
     environment:
       PEKKO_HOSTNAME: node2
       JAVA_TOOL_OPTIONS: -Dconfig.resource=application-docker.conf
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pekko
     depends_on:
       - node1
 
@@ -37,5 +52,6 @@ services:
     environment:
       PEKKO_HOSTNAME: node3
       JAVA_TOOL_OPTIONS: -Dconfig.resource=application-docker.conf
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pekko
     depends_on:
       - node1

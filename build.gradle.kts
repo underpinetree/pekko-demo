@@ -24,6 +24,10 @@ val pekkoManagementVersion = "1.0.0"
 
 dependencies {
     implementation("org.apache.pekko:pekko-actor-typed_3:$pekkoVersion")
+    implementation("org.apache.pekko:pekko-serialization-jackson_3:$pekkoVersion")
+    implementation("org.apache.pekko:pekko-persistence-typed_3:$pekkoVersion")
+    implementation("org.apache.pekko:pekko-persistence-jdbc_3:1.1.1")
+    implementation("org.postgresql:postgresql:42.7.3")
     implementation("org.apache.pekko:pekko-cluster-sharding-typed_3:$pekkoVersion")
     implementation("org.apache.pekko:pekko-discovery_3:$pekkoVersion")
     implementation("org.apache.pekko:pekko-management_3:$pekkoManagementVersion")
@@ -31,6 +35,8 @@ dependencies {
     implementation("org.apache.pekko:pekko-management-cluster-http_3:$pekkoManagementVersion")
     implementation("org.apache.pekko:pekko-discovery-kubernetes-api_3:$pekkoManagementVersion")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     developmentOnly("org.springframework.boot:spring-boot-devtools")

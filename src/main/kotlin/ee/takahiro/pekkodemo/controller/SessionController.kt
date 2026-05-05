@@ -1,5 +1,9 @@
 package ee.takahiro.pekkodemo.controller
 
+import ee.takahiro.pekkodemo.actor.GetMembers
+import ee.takahiro.pekkodemo.actor.Join
+import ee.takahiro.pekkodemo.actor.Leave
+import ee.takahiro.pekkodemo.actor.MembersResponse
 import ee.takahiro.pekkodemo.actor.VoiceSessionActor
 import org.apache.pekko.cluster.sharding.typed.javadsl.ClusterSharding
 import org.springframework.http.ResponseEntity
@@ -20,7 +24,7 @@ class SessionController(private val sharding: ClusterSharding) {
         @PathVariable memberId: String,
     ): ResponseEntity<Void> {
         sharding.entityRefFor(VoiceSessionActor.TYPE_KEY, sessionId)
-            .tell(VoiceSessionActor.Join(memberId))
+            .tell(Join(memberId))
         return ResponseEntity.ok().build()
     }
 
@@ -30,16 +34,16 @@ class SessionController(private val sharding: ClusterSharding) {
         @PathVariable memberId: String,
     ): ResponseEntity<Void> {
         sharding.entityRefFor(VoiceSessionActor.TYPE_KEY, sessionId)
-            .tell(VoiceSessionActor.Leave(memberId))
+            .tell(Leave(memberId))
         return ResponseEntity.ok().build()
     }
 
     @GetMapping("/{sessionId}/members")
     fun getMembers(@PathVariable sessionId: String): ResponseEntity<List<String>> {
-        val members = sharding.entityRefFor(VoiceSessionActor.TYPE_KEY, sessionId)
-            .ask(VoiceSessionActor::GetMembers, Duration.ofSeconds(3))
+        val response = sharding.entityRefFor(VoiceSessionActor.TYPE_KEY, sessionId)
+            .ask<MembersResponse>(::GetMembers, Duration.ofSeconds(3))
             .toCompletableFuture()
             .get()
-        return ResponseEntity.ok(members)
+        return ResponseEntity.ok(response.members)
     }
 }
