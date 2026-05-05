@@ -2,7 +2,7 @@
 set -e
 
 docker build -t pekko-demo:latest .
-kind load docker-image pekko-demo:latest
+kind load docker-image pekko-demo:latest --name pekko-demo
 kubectl apply -f k8s/
 kubectl rollout restart deployment/pekko-demo
 kubectl rollout status deployment/pekko-demo
